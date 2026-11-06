@@ -19,7 +19,28 @@ const normalize=s=>String(s||"").toLowerCase().normalize("NFKD").replace(/[\u030
 function tokens(s){return normalize(s).split(/\s+/).filter(t=>t.length>1&&!STOP.has(t))}
 function trigrams(s){const x="  "+normalize(s)+"  ",out=new Set();for(let i=0;i<x.length-2;i++)out.add(x.slice(i,i+3));return out}
 function overlap(a,b){const A=trigrams(a),B=trigrams(b);if(!A.size||!B.size)return 0;let n=0;for(const x of A)if(B.has(x))n++;return n/(A.size+B.size-n)}
-function scoreDoc(q,d){const qt=tokens(q),title=tokens(d.title),body=tokens(d.title+" "+d.summary+" "+d.body),tags=tokens(d.tags.join(" "));let score=0;const unique=[...new Set(qt)];for(const t of unique){const f=body.filter(x=>x===t).length;score+=Math.min(3,Math.log(1+f))*1.1;if(title.includes(t))score+=3.8;if(tags.includes(t))score+=2.1}const phrase=normalize(q);if(phrase.length>3&&normalize(d.title+" "+d.summary).includes(phrase))score+=8;const qSet=new Set(unique),tagHit=tags.filter(t=>qSet.has(t)).length;score+=tagHit*1.5;score+=overlap(q,d.title+" "+d.summary)*4;return score}
+// BM25-style ranking with field boosts and character similarity.
+function scoreDoc(q,d){
+ const queryTokens=[...new Set(tokens(q))];
+ const fields=[d.title,d.summary,d.body,d.tags.join(" ")];
+ const all=tokens(fields.join(" "));
+ const avgLen=Math.max(1,all.length);
+ const k1=1.35,b=.72;
+ let score=0;
+ for(const term of queryTokens){
+  const tf=all.filter(x=>x===term).length;
+  if(!tf)continue;
+  const df=KNOWLEDGE.filter(doc=>tokens(doc.title+" "+doc.summary+" "+doc.body+" "+doc.tags.join(" ")).includes(term)).length;
+  const idf=Math.log(1+(KNOWLEDGE.length-df+.5)/(df+.5));
+  score+=idf*(tf*(k1+1))/(tf+k1*(1-b+b*avgLen/Math.max(1,all.length)));
+  if(tokens(d.title).includes(term))score+=2.8;
+  if(tokens(d.tags.join(" ")).includes(term))score+=1.7;
+ }
+ const phrase=normalize(q);
+ if(phrase.length>4&&normalize(d.title+" "+d.summary).includes(phrase))score+=5;
+ score+=overlap(q,d.title+" "+d.summary)*2.5;
+ return score;
+}
 function retrieve(q,focus="All knowledge"){const rows=KNOWLEDGE.filter(d=>focus==="All knowledge"||focus==="Learning"&&["Science","Technology"].includes(d.topic)||d.topic===focus||d.tags.includes(normalize(focus))).map(d=>({...d,score:scoreDoc(q,d)})).sort((a,b)=>b.score-a.score);return rows.filter(x=>x.score>1.2).slice(0,5)}
 const state={focus:"All knowledge",research:true,current:null,history:[],saved:[],threads:[]};
 const load=(k,fb)=>{try{return JSON.parse(localStorage.getItem("shravan-"+k))??fb}catch{return fb}};
@@ -28,9 +49,41 @@ function persist(){localStorage.setItem("shravan-history",JSON.stringify(state.h
 function toast(t){const el=$("#toast");el.textContent=t;el.classList.add("show");clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove("show"),2200)}
 function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function cite(i){return '<a class="inline-cite" href="#source-'+i+'">['+(i+1)+']</a>'}
-function answerFor(q,docs){if(!docs.length)return {html:'<div class="no-match"><b>I could not find a reliable match in this local knowledge pack.</b><p>Try a broader question or a topic from the suggested searches. This preview does not search the live web, so it will not know facts that are not in its built-in library.</p></div>',confidence:0,follow:["How does Chandrayaan-3 work?","Explain how language models work","What is photosynthesis?"]};const best=docs[0],confidence=Math.min(96,Math.round(35+best.score*5+Math.min(15,docs.length*4)));let html='<p>'+escapeHTML(best.summary)+cite(0)+'</p>';if(docs.length>1){html+='<h2>What the evidence shows</h2><p>'+escapeHTML(best.body)+cite(0)+'</p>';html+='<ul>';for(const d of docs.slice(1,4))html+='<li><strong>'+escapeHTML(d.title)+':</strong> '+escapeHTML(d.summary)+cite(docs.indexOf(d))+'</li>';html+='</ul>'}else{html+='<h2>More context</h2><p>'+escapeHTML(best.body)+cite(0)+'</p>'}html+='<div class="answer-callout"><strong>Key points</strong><ul>'+best.facts.map(x=>'<li>'+escapeHTML(x)+'</li>').join("")+'</ul></div>';html+='<p><strong>In short:</strong> The strongest local match is <em>'+escapeHTML(best.title)+'</em>. The answer above is limited to the available source material.</p>';const follow=best.tags.filter(x=>x.length>3).slice(0,3).map(x=>"Explain "+x);return {html,confidence,follow}}
+function answerFor(q,docs){
+ if(!docs.length)return {
+  html:'<div class="no-match"><b>I do not have enough indexed evidence to answer this yet.</b><p>This version searches its built-in knowledge pack only. Try a simpler wording or a topic shown on the home page. It will not invent an answer when it cannot find supporting material.</p></div>',
+  confidence:"Insufficient evidence",
+  follow:["How does Chandrayaan-3 work?","How do language models work?","What is photosynthesis?"]
+ };
+ const ranked=docs.map((d,index)=>({...d,_index:index}));
+ const queryTerms=[...new Set(tokens(q))];
+ function sentenceScore(sentence,d){
+  const st=tokens(sentence);let n=0;
+  for(const t of queryTerms)if(st.includes(t))n+=1+(tokens(d.title).includes(t)?1.5:0);
+  return n/(1+Math.log(1+st.length));
+ }
+ const best=ranked[0];
+ const sentences=best.body.split(/(?<=[.!?])\\s+/).map(s=>s.trim()).filter(s=>s.length>35);
+ const selected=sentences.map(s=>({s,score:sentenceScore(s,best)})).filter(x=>x.score>0).sort((x,y)=>y.score-x.score).slice(0,4);
+ const evidence=selected.length?selected.map(x=>x.s):[best.body];
+ let html='<p>'+escapeHTML(best.summary)+cite(0)+'</p>';
+ html+='<h2>Answer</h2>';
+ html+='<p>'+evidence.slice(0,2).map(escapeHTML).join(" ") + cite(0)+'</p>';
+ if(evidence.length>2)html+='<h2>Further explanation</h2><p>'+evidence.slice(2).map(escapeHTML).join(" ") + cite(0)+'</p>';
+ const supporting=ranked.slice(1,4);
+ if(supporting.length){
+  html+='<h2>Related evidence</h2><ul>';
+  for(const d of supporting)html+='<li><strong>'+escapeHTML(d.title)+':</strong> '+escapeHTML(d.summary)+cite(d._index)+'</li>';
+  html+='</ul>';
+ }
+ html+='<div class="answer-callout"><strong>Key facts from the source</strong><ul>'+best.facts.map(x=>'<li>'+escapeHTML(x)+'</li>').join("")+'</ul></div>';
+ html+='<p><strong>Evidence note:</strong> This response is assembled from the indexed source material above. It is not generated by a trained language model; check the original sources for important facts.</p>';
+ const level=docs.length>=3?"Multiple matching sources":docs.length===2?"Two matching sources":"One matching source";
+ const follow=best.tags.filter(x=>x.length>3).slice(0,3).map(x=>"Explain "+x);
+ return {html,confidence:level,follow};
+}
 function sourceHTML(d,i){return '<div class="source-card" id="source-'+i+'"><span class="source-favicon">'+(i+1)+'</span><div><a href="'+escapeHTML(d.source.url)+'" target="_blank" rel="noopener noreferrer"><b>'+escapeHTML(d.source.name)+'</b></a><small>'+escapeHTML(d.source.kind)+' · '+escapeHTML(d.source.domain)+'</small></div></div>'}
-function runSearch(q){q=q.trim();if(!q)return;state.current=q;const docs=retrieve(q,state.focus),answer=answerFor(q,docs);state.last={q,docs,answer};state.history=[{q,time:Date.now()},...state.history.filter(x=>x.q!==q)].slice(0,30);persist();renderHistory();$("#homeView").classList.add("hidden");$("#libraryView").classList.add("hidden");$("#resultsView").classList.remove("hidden");$("#resultQuery").textContent=q;$("#modeName").textContent=state.research?"Research answer":"Quick answer";$("#resultMeta").textContent=docs.length?docs.length+" local source"+(docs.length===1?"":"s")+" · "+answer.confidence+"% match":"No strong local match";$("#answerContent").innerHTML=answer.html;$("#sourceList").innerHTML=docs.map(sourceHTML).join("")||'<p class="empty-history">No matching sources found.</p>';$("#sourceCount").textContent=docs.length;$("#followupChips").innerHTML=answer.follow.map(x=>'<button class="followup-chip">'+escapeHTML(x)+'</button>').join("");$("#queryInput").value=q;$("#followupInput").value="";$("#savedCount").textContent=state.saved.length;window.scrollTo({top:0,behavior:"smooth"})}
+function runSearch(q){q=q.trim();if(!q)return;state.current=q;const docs=retrieve(q,state.focus),answer=answerFor(q,docs);state.last={q,docs,answer};state.history=[{q,time:Date.now()},...state.history.filter(x=>x.q!==q)].slice(0,30);persist();renderHistory();$("#homeView").classList.add("hidden");$("#libraryView").classList.add("hidden");$("#resultsView").classList.remove("hidden");$("#resultQuery").textContent=q;$("#modeName").textContent=state.research?"Evidence synthesis":"Quick answer";$("#resultMeta").textContent=docs.length?docs.length+" indexed source"+(docs.length===1?"":"s")+" · "+answer.confidence:"No strong local match";$("#answerContent").innerHTML=answer.html;$("#sourceList").innerHTML=docs.map(sourceHTML).join("")||'<p class="empty-history">No matching sources found.</p>';$("#sourceCount").textContent=docs.length;$("#followupChips").innerHTML=answer.follow.map(x=>'<button class="followup-chip">'+escapeHTML(x)+'</button>').join("");$("#queryInput").value=q;$("#followupInput").value="";$("#savedCount").textContent=state.saved.length;window.scrollTo({top:0,behavior:"smooth"})}
 function showHome(){state.current=null;$("#resultsView").classList.add("hidden");$("#libraryView").classList.add("hidden");$("#homeView").classList.remove("hidden");$("#queryInput").focus()}
 function renderHistory(){$("#historyList").innerHTML=state.history.length?state.history.map(x=>'<button class="history-entry" data-history="'+escapeHTML(x.q)+'" title="'+escapeHTML(x.q)+'">'+escapeHTML(x.q)+'</button>').join(""):'<div class="empty-history">Your searches will appear here.</div>'}
 function showLibrary(){$("#homeView").classList.add("hidden");$("#resultsView").classList.add("hidden");$("#libraryView").classList.remove("hidden");$("#libraryItems").innerHTML=state.saved.length?state.saved.map((x,i)=>'<div class="library-card"><h3>'+escapeHTML(x.q)+'</h3><p>'+escapeHTML(x.preview)+'</p><button data-open-saved="'+i+'">Open answer →</button>　<button data-remove-saved="'+i+'">Remove</button></div>').join(""):'<div class="empty-library">No saved answers yet. Save a useful answer to find it here.</div>'}
