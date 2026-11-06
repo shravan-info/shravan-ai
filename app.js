@@ -63,7 +63,7 @@ function answerFor(q,docs){
   return n/(1+Math.log(1+st.length));
  }
  const best=ranked[0];
- const sentences=best.body.split(/(?<=[.!?])\\s+/).map(s=>s.trim()).filter(s=>s.length>35);
+ const sentences=best.body.split(/(?<=[.!?])\s+/).map(s=>s.trim()).filter(s=>s.length>35);
  const selected=sentences.map(s=>({s,score:sentenceScore(s,best)})).filter(x=>x.score>0).sort((x,y)=>y.score-x.score).slice(0,4);
  const evidence=selected.length?selected.map(x=>x.s):[best.body];
  let html='<p>'+escapeHTML(best.summary)+cite(0)+'</p>';
