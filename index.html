@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#101114">
+  <meta name="description" content="Shravan AI — an independent research and answer engine powered by a local knowledge system.">
+  <title>Shravan AI — Discover with clarity</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="./" aria-label="Shravan AI home">
+        <span class="brand-mark"><svg viewBox="0 0 36 36" aria-hidden="true"><path d="M18 3.5 31 11v14L18 32.5 5 25V11L18 3.5Z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M11 21.5c2.2-5.8 4.1-8.7 7-8.7 2.3 0 3.9 2.1 7 8.7M12.5 18h11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+        <span class="brand-name">shravan<span>ai</span></span>
+      </a>
+      <button class="new-thread" id="newThread"><span>＋</span> New thread <kbd>⌘ K</kbd></button>
+      <div class="side-label">WORKSPACE</div>
+      <nav class="side-nav">
+        <button class="nav-item active" data-view="home"><span class="nav-icon">⌕</span> Discover</button>
+        <button class="nav-item" data-view="library"><span class="nav-icon">▤</span> Library <span class="nav-count" id="savedCount">0</span></button>
+      </nav>
+      <div class="side-label history-label">RECENT THREADS <button id="clearHistory" class="tiny-action">Clear</button></div>
+      <div class="history-list" id="historyList"><div class="empty-history">Your searches will appear here.</div></div>
+      <div class="sidebar-bottom">
+        <div class="engine-status"><span class="status-dot"></span><span><b>Local engine</b><small>No external AI API</small></span><span class="status-live">READY</span></div>
+        <button class="profile-button" id="aboutButton"><span class="avatar">S</span><span><b>Shravan AI</b><small>Independent research lab</small></span><span class="more">···</span></button>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <button class="icon-button mobile-menu" id="menuButton" aria-label="Open menu">☰</button>
+        <div class="top-context"><span class="context-dot"></span> Independent answer engine <span class="top-beta">PREVIEW</span></div>
+        <div class="top-actions">
+          <button class="icon-button" id="themeButton" aria-label="Toggle theme" title="Toggle theme">☼</button>
+          <button class="icon-button" id="helpButton" aria-label="About this engine" title="About">?</button>
+          <div class="mini-avatar">S</div>
+        </div>
+      </header>
+
+      <section class="home-view" id="homeView">
+        <div class="hero">
+          <div class="eyebrow"><span class="spark">✳</span> THINK DEEPER. FIND CLARITY.</div>
+          <h1>Where curiosity<br class="mobile-break"> meets <span>clarity.</span></h1>
+          <p class="hero-subtitle">Explore ideas, connect evidence, and make sense of what matters.</p>
+          <div class="composer-wrap">
+            <form class="composer" id="searchForm">
+              <textarea id="queryInput" rows="1" placeholder="Ask anything..." aria-label="Ask Shravan AI" maxlength="1200"></textarea>
+              <div class="composer-bottom">
+                <div class="composer-tools">
+                  <button type="button" class="tool-pill active" id="researchToggle"><span>✧</span> Research</button>
+                  <button type="button" class="tool-pill" id="focusButton"><span>◎</span> Focus <span class="chevron">⌄</span></button>
+                </div>
+                <div class="composer-submit">
+                  <span class="input-hint">↵ to search</span>
+                  <button class="send-button" type="submit" aria-label="Search"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg></button>
+                </div>
+              </div>
+            </form>
+            <div class="focus-menu hidden" id="focusMenu">
+              <button data-focus="All knowledge"><b>✧</b><span>All knowledge<small>Search across every topic</small></span></button>
+              <button data-focus="Science"><b>⚛</b><span>Science<small>Science and technology</small></span></button>
+              <button data-focus="India"><b>⌂</b><span>India<small>Indian history, places and institutions</small></span></button>
+              <button data-focus="Learning"><b>▤</b><span>Learning<small>Clear educational explanations</small></span></button>
+            </div>
+            <div class="composer-foot"><span><i class="shield">◈</i> Your searches stay in this browser</span><span id="focusLabel">Searching: All knowledge</span></div>
+          </div>
+          <div class="suggestions">
+            <button class="suggestion" data-query="How does Chandrayaan-3 work?"><span class="suggestion-icon moon">◔</span> How does Chandrayaan-3 work?</button>
+            <button class="suggestion" data-query="What makes a language model intelligent?"><span class="suggestion-icon brain">⌘</span> What makes a language model intelligent?</button>
+            <button class="suggestion" data-query="Explain India's semiconductor mission"><span class="suggestion-icon atom">⚛</span> India's semiconductor mission</button>
+          </div>
+        </div>
+        <section class="discover-section">
+          <div class="section-heading"><div><span class="section-kicker">A PLACE TO START</span><h2>Explore a little further</h2></div><span class="curated-label"><span class="status-dot"></span> Curated topics</span></div>
+          <div class="topic-grid">
+            <button class="topic-card" data-query="How does the human brain learn and remember?"><span class="topic-symbol violet">◉</span><span><b>Mind & learning</b><small>How we think and grow</small></span><span class="topic-arrow">↗</span></button>
+            <button class="topic-card" data-query="How does India's space programme work?"><span class="topic-symbol blue">✦</span><span><b>Space & science</b><small>Discover the universe</small></span><span class="topic-arrow">↗</span></button>
+            <button class="topic-card" data-query="How does the Indian Constitution work?"><span class="topic-symbol amber">⌂</span><span><b>India & society</b><small>People, places and ideas</small></span><span class="topic-arrow">↗</span></button>
+            <button class="topic-card" data-query="How do computers understand information?"><span class="topic-symbol green">⌘</span><span><b>Technology</b><small>Inside the digital world</small></span><span class="topic-arrow">↗</span></button>
+          </div>
+        </section>
+        <footer class="home-footer"><span>SHRAVAN AI <span class="footer-version">v0.1.0</span></span><span>Built for thoughtful discovery</span><span class="local-tag">● LOCAL KNOWLEDGE MODE</span></footer>
+      </section>
+
+      <section class="results-view hidden" id="resultsView">
+        <div class="results-inner">
+          <div class="query-line"><span class="query-mark">⌕</span><span id="resultQuery"></span><button id="editQuery" class="edit-query" aria-label="Edit query">✎</button></div>
+          <div class="answer-toolbar"><div class="answer-mode"><span class="spark">✧</span> <b id="modeName">Research answer</b><span class="mode-separator">·</span><span id="resultMeta">Local knowledge</span></div><div class="answer-actions"><button id="copyAnswer" class="text-action">▢ Copy</button><button id="saveAnswer" class="text-action">☆ Save</button></div></div>
+          <div class="answer-layout">
+            <article class="answer-column">
+              <div id="answerContent" class="answer-content"></div>
+              <div class="followup-box">
+                <div class="followup-title">Continue exploring</div>
+                <div class="followup-chips" id="followupChips"></div>
+                <form id="followupForm" class="followup-form"><input id="followupInput" placeholder="Ask a follow-up..." aria-label="Ask a follow-up"><button type="submit" aria-label="Send follow-up">↑</button></form>
+              </div>
+              <div class="answer-disclaimer"><span>◈</span> Answers are generated from the built-in sample library. Verify important facts with original sources.</div>
+            </article>
+            <aside class="sources-column"><div class="sources-heading"><span>▤</span> Sources <span class="source-count" id="sourceCount">0</span></div><div id="sourceList" class="source-list"></div><div class="source-note"><span>ⓘ</span> Sources are included in the local knowledge pack. No live web search is connected.</div></aside>
+          </div>
+        </div>
+      </section>
+
+      <section class="library-view hidden" id="libraryView"><div class="library-inner"><div class="section-kicker">YOUR PERSONAL SPACE</div><h1>Saved library</h1><p class="library-intro">Keep useful answers close. Saved items are stored on this device.</p><div id="libraryItems" class="library-items"></div></div></section>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+  <div class="modal-backdrop hidden" id="modalBackdrop"><div class="modal"><button class="modal-close" id="modalClose">×</button><div class="modal-symbol">✳</div><h2>About Shravan AI</h2><p>Shravan AI is an independent answer-engine experiment. This preview uses a small, curated local knowledge pack and a custom retrieval-and-ranking pipeline. It does not connect to an external AI model or perform live web searches.</p><div class="modal-spec"><span>RETRIEVAL</span><b>SAGE · Hybrid evidence ranking</b><span>STORAGE</span><b>Browser-local history & library</b><span>PRIVACY</span><b>No account · No tracking</b></div><button class="modal-ok" id="modalOk">Got it</button></div></div>
+  <script src="./app.js"></script>
+  <script>if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('./sw.js').catch(()=>{});</script>
+</body>
+</html>
