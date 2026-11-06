@@ -28,7 +28,7 @@ Open index.html in a modern browser. For service-worker/PWA testing, serve the r
 The workflow in .github/workflows/pages.yml publishes the repository on pushes to main.
 
 1. Open **Settings → Pages** in this repository.
-2. Under **Build and deployment**, choose **GitHub Actions** as the source.
+2. Under **Build and deployment**, choose **GitHub Actions** as the source and save.
 3. Push to main, or run **Deploy Shravan AI to GitHub Pages** from the Actions tab.
 4. After the workflow succeeds, the site will be available at:
 
